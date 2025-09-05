@@ -1,0 +1,85 @@
+{
+    "node_display_names": {
+        "nanobanana apiAICG阿洋（文生图）": "AICG Ayang Text-to-Image",
+        "nanobanana apiAICG阿洋（图生图）": "AICG Ayang Image-to-Image", 
+        "nanobanana 图生图尺寸调整": "Canvas Size Crop for Img2Img"
+    },
+    "widget_labels": {
+        "api_key": "API Key",
+        "prompt": "Prompt",
+        "model": "Model",
+        "image": "Image",
+        "image2": "Image 2",
+        "image3": "Image 3", 
+        "image4": "Image 4",
+        "image5": "Image 5",
+        "api_key_1": "Backup API Key 1",
+        "api_key_2": "Backup API Key 2",
+        "api_key_3": "Backup API Key 3",
+        "api_key_4": "Backup API Key 4",
+        "api_key_5": "Backup API Key 5",
+        "image_format": "Image Format",
+        "canvas_preset": "Canvas Preset",
+        "attach_canvas": "Attach Canvas"
+    },
+    "canvas_presets": {
+        "1:1 - 1024x1024": "1:1 - 1024x1024",
+        "3:4 - 896x1152": "3:4 - 896x1152",
+        "5:8 - 832x1216": "5:8 - 832x1216",
+        "9:16 - 768x1344": "9:16 - 768x1344",
+        "9:21 - 640x1536": "9:21 - 640x1536",
+        "4:3 - 1152x896": "4:3 - 1152x896",
+        "3:2 - 1216x832": "3:2 - 1216x832",
+        "16:9 - 1344x768": "16:9 - 1344x768"
+    },
+    "image_formats": {
+        "jpeg": "JPEG",
+        "png": "PNG"
+    },
+    "boolean_options": {
+        "True": "True",
+        "False": "False"
+    },
+    "error_messages": {
+        "install_openai": "Please install openai library first: pip install openai",
+        "api_key_empty": "API Key cannot be empty",
+        "no_valid_api_key": "Error: No valid API Key provided, please fill in at least one (returning placeholder canvas)",
+        "no_prompt": "Error: Please enter a prompt (returning placeholder canvas)",
+        "no_valid_input_image": "Error: No valid input image provided (returning placeholder canvas)",
+        "image_conversion_failed": "Image conversion failed: {error} (returning placeholder canvas)",
+        "api_call_error": "API call error: {error}",
+        "error_generating_image": "Error generating image: {error}",
+        "no_image_data": "No image data received from model",
+        "reference_image_conversion_failed": "Reference image {index} conversion failed: {error}",
+        "reference_image_conversion_failed_single": "Reference image conversion failed: {error}",
+        "model_response_format_error": "Model response format error: images is not a list type",
+        "image_decoding_failed": "Image decoding failed: {error}",
+        "no_valid_image_data": "No valid image data found in model response.",
+        "unable_to_serialize": "<Unable to serialize response>",
+        "error_parsing_response": "Error parsing response: {error}",
+        "expected_tensor": "Expected input to be torch.Tensor, got {type}",
+        "image_tensor_dimension_error": "Image tensor dimension error, expected 4 dimensions, got {dimensions} dimensions",
+        "non_retryable_error": "Non-retryable error with Key #{key}: {error} (returning placeholder canvas)",
+        "non_retryable_error_reference": "Non-retryable error with Key #{key}: {error} (returning reference image)",
+        "all_api_keys_failed": "All API Key attempts failed: {error} (returning placeholder canvas)",
+        "all_api_keys_failed_reference": "All API Key attempts failed: {error} (returning reference image)"
+    },
+    "status_messages": {
+        "success_text_to_image": "Successfully generated {count} images (Text-to-Image mode, using Key #{key_num}, attempt {attempt}/{total})",
+        "success_image_to_image": "Successfully generated {count} images (Image-to-Image mode, using Key #{key_num}, attempt {attempt}/{total})"
+    },
+    "debug_messages": {
+        "warning_image_size_mismatch": "Warning: Image {index} size {size} does not match first image {first_size}, size adjusted",
+        "built_in_canvas_failed": "Built-in canvas generation/cropping failed: {error}",
+        "canvas_generation_failed": "Canvas generation failed: {error}, returning default size",
+        "attaching_reference_canvas": "Attaching reference canvas to request (first reference image)"
+    },
+    "prompts": {
+        "size_requirement": "Please output the final image at exactly {width}x{height} pixels, do not scale, crop or add borders; output must match these pixels exactly.",
+        "text_to_image_prompt": "Please help me generate on a blank canvas: {prompt}",
+        "text_to_image_instruction": "Only return the generated image, do not return any text description or additional explanation.",
+        "image_to_image_prompt": "Please refer to the provided image content and style, and generate a new image based on the following prompt: {prompt}",
+        "image_to_image_instruction": "Return the generated image directly, no text description or additional explanation needed.",
+        "size_instruction": " Please output the final image at {width}x{height} pixels and return an image of that size."
+    }
+}

@@ -3,6 +3,7 @@ import io
 import base64
 import traceback
 import random
+import json
 from typing import List, Tuple, Optional
 
 import numpy as np
@@ -14,6 +15,76 @@ try:
 except ImportError:
     OpenAI = None  # 延迟报错，在调用时提示安装依赖
     OpenAIError = Exception  # 兼容异常处理
+
+
+# 多语言支持系统
+class LocaleManager:
+    def __init__(self):
+        self.current_locale = "en"  # 默认英文
+        self.translations = {}
+        self.load_translations()
+    
+    def load_translations(self):
+        """加载翻译文件"""
+        locale_dir = os.path.join(os.path.dirname(__file__), "locale")
+        for locale in ["en", "zh_CN"]:
+            locale_file = os.path.join(locale_dir, locale, "strings.json")
+            if os.path.exists(locale_file):
+                try:
+                    with open(locale_file, 'r', encoding='utf-8') as f:
+                        self.translations[locale] = json.load(f)
+                except Exception as e:
+                    print(f"Failed to load locale {locale}: {e}")
+    
+    def set_locale(self, locale: str):
+        """设置当前语言"""
+        if locale in self.translations:
+            self.current_locale = locale
+    
+    def get_locale(self) -> str:
+        """获取当前语言"""
+        return self.current_locale
+    
+    def t(self, key: str, **kwargs) -> str:
+        """获取翻译文本"""
+        try:
+            # 支持嵌套键，如 "error_messages.api_key_empty"
+            keys = key.split('.')
+            value = self.translations[self.current_locale]
+            for k in keys:
+                value = value[k]
+            
+            # 格式化字符串
+            if isinstance(value, str) and kwargs:
+                return value.format(**kwargs)
+            return value
+        except (KeyError, TypeError):
+            # 如果找不到翻译，返回键本身
+            return key
+    
+    def get_node_display_name(self, node_name: str) -> str:
+        """获取节点显示名称"""
+        return self.t(f"node_display_names.{node_name}")
+    
+    def get_widget_label(self, widget_name: str) -> str:
+        """获取控件标签"""
+        return self.t(f"widget_labels.{widget_name}")
+    
+    def get_canvas_preset(self, preset: str) -> str:
+        """获取画布预设显示名称"""
+        return self.t(f"canvas_presets.{preset}")
+    
+    def get_image_format(self, format_name: str) -> str:
+        """获取图像格式显示名称"""
+        return self.t(f"image_formats.{format_name}")
+    
+    def get_boolean_option(self, option: str) -> str:
+        """获取布尔选项显示名称"""
+        return self.t(f"boolean_options.{option}")
+
+
+# 全局语言管理器实例
+locale_manager = LocaleManager()
 
 
 def _pil_to_base64_data_url(img: Image.Image, format: str = "jpeg") -> str:
@@ -33,7 +104,7 @@ def _decode_image_from_openrouter_response(completion) -> Tuple[List[Image.Image
         images_list = response_dict.get("choices", [{}])[0].get("message", {}).get("images", [])
 
         if not isinstance(images_list, list):
-            return [], "模型回复格式错误：images不是列表类型"
+            return [], locale_manager.t("error_messages.model_response_format_error")
 
         out_pils = []
         for image_info in images_list:
@@ -52,18 +123,18 @@ def _decode_image_from_openrouter_response(completion) -> Tuple[List[Image.Image
                 pil = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                 out_pils.append(pil)
             except Exception as e:
-                return [], f"图片解码失败: {str(e)}"
+                return [], locale_manager.t("error_messages.image_decoding_failed", error=str(e))
 
         if out_pils:
             return out_pils, ""
-        return [], f"模型回复中未包含有效图片数据。\n\n--- 完整响应 ---\n{completion.model_dump_json(indent=2)}"
+        return [], f"{locale_manager.t('error_messages.no_valid_image_data')}\n\n--- Complete Response ---\n{completion.model_dump_json(indent=2)}"
 
     except Exception as e:
         try:
             raw = completion.model_dump_json(indent=2)
         except Exception:
-            raw = "<无法序列化响应>"
-        return [], f"解析响应出错: {str(e)}\n\n--- 完整响应 ---\n{raw}"
+            raw = locale_manager.t("error_messages.unable_to_serialize")
+        return [], f"{locale_manager.t('error_messages.error_parsing_response', error=str(e))}\n\n--- Complete Response ---\n{raw}"
 
 
 def _tensor_to_pils(image) -> List[Image.Image]:
@@ -72,7 +143,7 @@ def _tensor_to_pils(image) -> List[Image.Image]:
         image = image["images"]
 
     if not isinstance(image, torch.Tensor):
-        raise TypeError(f"期望输入为torch.Tensor，实际得到{type(image)}")
+        raise TypeError(locale_manager.t("error_messages.expected_tensor", type=type(image)))
 
     # 处理单张图片的情况
     if image.ndim == 3:
@@ -80,7 +151,7 @@ def _tensor_to_pils(image) -> List[Image.Image]:
 
     # 验证张量维度
     if image.ndim != 4:
-        raise ValueError(f"图像张量维度错误，期望4维，实际{image.ndim}维")
+        raise ValueError(locale_manager.t("error_messages.image_tensor_dimension_error", dimensions=image.ndim))
 
     # 转换为PIL图像
     arr = (image.clamp(0, 1).cpu().numpy() * 255.0).astype(np.uint8)  # [B,H,W,3]
@@ -100,7 +171,7 @@ def _pils_to_tensor(pils: List[Image.Image]) -> torch.Tensor:
         if pil.size != first_size:
             # 调整尺寸以匹配第一张图像
             pils[i] = pil.resize(first_size, Image.LANCZOS)
-            print(f"警告：图像{i}尺寸{pil.size}与第一张图像{first_size}不一致，已调整尺寸")
+            print(locale_manager.t("debug_messages.warning_image_size_mismatch", index=i, size=pil.size, first_size=first_size))
 
     np_imgs = []
     for pil in pils:
@@ -117,7 +188,7 @@ class OpenRouterTextToImage:
     """
     使用OpenRouter进行文生图的节点
     """
-    CATEGORY = "OpenRouter"
+    CATEGORY = "AICG Ayang"
     FUNCTION = "generate"
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("image", "status")
@@ -133,14 +204,14 @@ class OpenRouterTextToImage:
                                     "default": "google/gemini-2.5-flash-image-preview:free"}),
             },
             "optional": {
-                # 备用API Key
+                # Backup API Keys
                 "api_key_1": ("STRING", {"multiline": False, "default": ""}),
                 "api_key_2": ("STRING", {"multiline": False, "default": ""}),
                 "api_key_3": ("STRING", {"multiline": False, "default": ""}),
                 "api_key_4": ("STRING", {"multiline": False, "default": ""}),
                 "api_key_5": ("STRING", {"multiline": False, "default": ""}),
                 "image_format": (["jpeg", "png"], {"default": "jpeg"}),
-                # 内置白底画布裁剪预设
+                # Built-in white canvas crop presets
                 "canvas_preset": ([
                     "1:1 - 1024x1024",
                     "3:4 - 896x1152",
@@ -165,10 +236,10 @@ class OpenRouterTextToImage:
     ) -> Tuple[List[Image.Image], str, bool]:
         """调用OpenRouter API生成图像"""
         if OpenAI is None:
-            return [], "请先安装openai库: pip install openai", False
+            return [], locale_manager.t("error_messages.install_openai"), False
 
         if not api_key:
-            return [], "API Key不能为空", False
+            return [], locale_manager.t("error_messages.api_key_empty"), False
 
         try:
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
@@ -179,13 +250,13 @@ class OpenRouterTextToImage:
             if pil_refs and len(pil_refs) > 0 and isinstance(pil_refs[0], Image.Image):
                 try:
                     w, h = pil_refs[0].size
-                    size_req = f"请以 {w}x{h} 像素精确输出最终图像，不要缩放、裁剪或添加边框；输出必须与该像素完全一致。\n"
+                    size_req = locale_manager.t("prompts.size_requirement", width=w, height=h) + "\n"
                 except Exception:
                     size_req = ""
 
             full_prompt = (
-                f"{size_req}请在空白的画布上帮我生成：{prompt_text}\n"
-                "仅返回生成的图像，不要返回任何文字描述或额外说明。"
+                f"{size_req}{locale_manager.t('prompts.text_to_image_prompt', prompt=prompt_text)}\n"
+                f"{locale_manager.t('prompts.text_to_image_instruction')}"
             )
 
             # 如果有内嵌或裁剪后的参考画布，优先附加第一张参考图片（放在文本前），以便模型在该画布上修改
@@ -198,9 +269,9 @@ class OpenRouterTextToImage:
                         "type": "image_url",
                         "image_url": {"url": data_url}
                     })
-                    print("附加参考画布到请求（第一张参考图）")
+                    print(locale_manager.t("debug_messages.attaching_reference_canvas"))
                 except Exception as e:
-                    return [], f"参考图转换失败: {str(e)}", False
+                    return [], locale_manager.t("error_messages.reference_image_conversion_failed_single", error=str(e)), False
 
             # 将文本提示放在图片之后
             content_items.append({"type": "text", "text": full_prompt})
@@ -216,18 +287,18 @@ class OpenRouterTextToImage:
             if err:
                 return [], err, False
             if not pils:
-                return [], "未从模型收到图片数据", False
+                return [], locale_manager.t("error_messages.no_image_data"), False
             return pils, "", False
 
         except OpenAIError as e:
-            err_msg = f"API调用错误: {str(e)}"
+            err_msg = locale_manager.t("error_messages.api_call_error", error=str(e))
             status_code = getattr(e, 'status_code', 0)
             retryable_codes = {401, 403, 429, 502, 503, 504}
             retryable = status_code in retryable_codes
             return [], err_msg, retryable
         except Exception as e:
             tb = traceback.format_exc()
-            return [], f"生成图片时出错: {tb}", False
+            return [], locale_manager.t("error_messages.error_generating_image", error=tb), False
 
     def generate(
         self,
@@ -250,7 +321,7 @@ class OpenRouterTextToImage:
             # 返回占位图像而不是空张量
             placeholder = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([placeholder])
-            return out_tensor, "错误：未提供有效API Key，请至少填写一个（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.no_valid_api_key")
 
         key_index = 0
         def next_key() -> str:
@@ -265,7 +336,7 @@ class OpenRouterTextToImage:
             # 返回占位图像而不是空张量
             placeholder = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([placeholder])
-            return out_tensor, "错误：请输入提示词（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.no_prompt")
 
         # 生成内置2048x2048白底画布并根据预设进行裁剪，作为参考图发送
         preset_map = {
@@ -295,10 +366,10 @@ class OpenRouterTextToImage:
         except Exception as e:
             pil_refs = []
             target_w, target_h = canvas_size
-            print(f"内置画布生成/裁剪失败: {str(e)}")
+            print(locale_manager.t("debug_messages.built_in_canvas_failed", error=str(e)))
 
         # 明确告知模型输出尺寸要求，增加被遵从的概率
-        size_instruction = f" 请以 {target_w}x{target_h} 像素输出最终图像，并返回该尺寸的图片。"
+        size_instruction = locale_manager.t("prompts.size_instruction", width=target_w, height=target_h)
         prompt_text = prompt_text + size_instruction
 
         # 是否将内置画布以 data URL 附加到请求中（有时会导致请求体过大或 API 返回 400）
@@ -328,7 +399,7 @@ class OpenRouterTextToImage:
                 else:
                     placeholder_list = pil_refs
                 out_tensor = _pils_to_tensor(placeholder_list)
-                return out_tensor, f"使用Key #{attempt+1}发生不可重试错误: {err}（返回占位画布）"
+                return out_tensor, locale_manager.t("error_messages.non_retryable_error", key=attempt+1, error=err)
             last_err = err
 
         if not success_pils:
@@ -339,7 +410,7 @@ class OpenRouterTextToImage:
             else:
                 placeholder_list = pil_refs
             out_tensor = _pils_to_tensor(placeholder_list)
-            return out_tensor, f"所有API Key尝试失败: {last_err}（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.all_api_keys_failed", error=last_err)
 
         # 准备输出
         # 若模型返回图片但尺寸与目标不符，则在节点端进行中心裁剪并缩放到目标尺寸，确保输出像素满足选择
@@ -378,8 +449,11 @@ class OpenRouterTextToImage:
                 processed_pils.append(p.convert('RGB'))
 
         out_tensor = _pils_to_tensor(processed_pils)
-        status = (f"成功生成{len(success_pils)}张图片 "
-              f"(文生图模式, 使用Key #{(key_index-1)%len(api_keys)+1}, 尝试{attempt+1}/{attempts})")
+        status = locale_manager.t("status_messages.success_text_to_image", 
+                                 count=len(success_pils),
+                                 key_num=(key_index-1)%len(api_keys)+1,
+                                 attempt=attempt+1,
+                                 total=attempts)
         return (out_tensor, status)
 
 
@@ -387,7 +461,7 @@ class OpenRouterImageToImage:
     """
     使用OpenRouter进行图生图的节点
     """
-    CATEGORY = "OpenRouter"
+    CATEGORY = "AICG Ayang"
     FUNCTION = "generate"
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("image", "status")
@@ -408,7 +482,7 @@ class OpenRouterImageToImage:
                 "image3": ("IMAGE",),
                 "image4": ("IMAGE",),
                 "image5": ("IMAGE",),
-                # 备用API Key
+                # Backup API Keys
                 "api_key_1": ("STRING", {"multiline": False, "default": ""}),
                 "api_key_2": ("STRING", {"multiline": False, "default": ""}),
                 "api_key_3": ("STRING", {"multiline": False, "default": ""}),
@@ -428,17 +502,17 @@ class OpenRouterImageToImage:
     ) -> Tuple[List[Image.Image], str, bool]:
         """调用OpenRouter API生成图像"""
         if OpenAI is None:
-            return [], "请先安装openai库: pip install openai", False
+            return [], locale_manager.t("error_messages.install_openai"), False
 
         if not api_key:
-            return [], "API Key不能为空", False
+            return [], locale_manager.t("error_messages.api_key_empty"), False
 
         try:
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
             
             # 图生图提示词
-            full_prompt = (f"请参考提供的图片内容和风格，根据以下提示词生成新图片：{prompt_text}\n"
-                          "直接返回生成的图像，无需任何文字描述或额外说明。")
+            full_prompt = (f"{locale_manager.t('prompts.image_to_image_prompt', prompt=prompt_text)}\n"
+                          f"{locale_manager.t('prompts.image_to_image_instruction')}")
                 
             content_items = [{"type": "text", "text": full_prompt}]
 
@@ -451,7 +525,7 @@ class OpenRouterImageToImage:
                         "image_url": {"url": data_url}
                     })
                 except Exception as e:
-                    return [], f"参考图{i+1}转换失败: {str(e)}", False
+                    return [], locale_manager.t("error_messages.reference_image_conversion_failed", index=i+1, error=str(e)), False
 
             # 调用API
             completion = client.chat.completions.create(
@@ -464,18 +538,18 @@ class OpenRouterImageToImage:
             if err:
                 return [], err, False
             if not pils:
-                return [], "未从模型收到图片数据", False
+                return [], locale_manager.t("error_messages.no_image_data"), False
             return pils, "", False
 
         except OpenAIError as e:
-            err_msg = f"API调用错误: {str(e)}"
+            err_msg = locale_manager.t("error_messages.api_call_error", error=str(e))
             status_code = getattr(e, 'status_code', 0)
             retryable_codes = {401, 403, 429, 502, 503, 504}
             retryable = status_code in retryable_codes
             return [], err_msg, retryable
         except Exception as e:
             tb = traceback.format_exc()
-            return [], f"生成图片时出错: {tb}", False
+            return [], locale_manager.t("error_messages.error_generating_image", error=tb), False
 
     def generate(
         self,
@@ -501,7 +575,7 @@ class OpenRouterImageToImage:
             # 返回占位图像而不是空张量
             placeholder = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([placeholder])
-            return out_tensor, "错误：未提供有效API Key，请至少填写一个（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.no_valid_api_key")
 
         key_index = 0
         def next_key() -> str:
@@ -516,7 +590,7 @@ class OpenRouterImageToImage:
             # 返回占位图像而不是空张量
             placeholder = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([placeholder])
-            return out_tensor, "错误：请输入提示词（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.no_prompt")
 
         # 处理输入图像
         pil_refs = []
@@ -532,13 +606,13 @@ class OpenRouterImageToImage:
             # 返回占位图像而不是空张量
             placeholder = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([placeholder])
-            return out_tensor, f"图像转换失败: {str(e)}（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.image_conversion_failed", error=str(e))
 
         if not pil_refs:
             # 返回占位图像而不是空张量
             placeholder = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([placeholder])
-            return out_tensor, "错误：未提供有效输入图像（返回占位画布）"
+            return out_tensor, locale_manager.t("error_messages.no_valid_input_image")
 
         # 生成逻辑
         attempts = len(api_keys)
@@ -558,25 +632,28 @@ class OpenRouterImageToImage:
                 # 返回第一张参考图作为占位
                 placeholder_list = [pil_refs[0]] if pil_refs else []
                 out_tensor = _pils_to_tensor(placeholder_list)
-                return out_tensor, f"使用Key #{attempt+1}发生不可重试错误: {err}（返回参考图）"
+                return out_tensor, locale_manager.t("error_messages.non_retryable_error_reference", key=attempt+1, error=err)
             last_err = err
 
         if not success_pils:
             # 所有Key尝试失败，返回第一张参考图作为占位
             placeholder_list = [pil_refs[0]] if pil_refs else []
             out_tensor = _pils_to_tensor(placeholder_list)
-            return out_tensor, f"所有API Key尝试失败: {last_err}（返回参考图）"
+            return out_tensor, locale_manager.t("error_messages.all_api_keys_failed_reference", error=last_err)
 
         # 转换为张量输出
         out_tensor = _pils_to_tensor(success_pils)
-        status = (f"成功生成{len(success_pils)}张图片 "
-              f"(图生图模式, 使用Key #{(key_index-1)%len(api_keys)+1}, 尝试{attempt+1}/{attempts})")
+        status = locale_manager.t("status_messages.success_image_to_image", 
+                                 count=len(success_pils),
+                                 key_num=(key_index-1)%len(api_keys)+1,
+                                 attempt=attempt+1,
+                                 total=attempts)
         return (out_tensor, status)
 
 
 class CanvasSizeCropForImg2Img:
     """生成内置2048x2048白底并裁剪为选定尺寸，用作图生图的输入（控制输出尺寸）。"""
-    CATEGORY = "AICG阿洋"
+    CATEGORY = "AICG Ayang"
     FUNCTION = "generate"
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
@@ -633,7 +710,7 @@ class CanvasSizeCropForImg2Img:
             # 出错时返回默认尺寸的白底图
             default_img = Image.new('RGB', (1024, 1024), color=(255, 255, 255))
             out_tensor = _pils_to_tensor([default_img])
-            print(f"画布生成失败: {str(e)}，返回默认尺寸")
+            print(locale_manager.t("debug_messages.canvas_generation_failed", error=str(e)))
             return (out_tensor,)
 
 
@@ -643,8 +720,31 @@ NODE_CLASS_MAPPINGS = {
     "nanobanana apiAICG阿洋（图生图）": OpenRouterImageToImage,
     "nanobanana 图生图尺寸调整": CanvasSizeCropForImg2Img,
 }
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "nanobanana apiAICG阿洋（文生图）": "nanobanana apiAICG阿洋（文生图）",
-    "nanobanana apiAICG阿洋（图生图）": "nanobanana apiAICG阿洋（图生图）",
-    "nanobanana 图生图尺寸调整": "图生图尺寸调整",
-}
+def get_node_display_name_mappings():
+    """获取节点显示名称映射，支持多语言"""
+    return {
+        "nanobanana apiAICG阿洋（文生图）": locale_manager.get_node_display_name("nanobanana apiAICG阿洋（文生图）"),
+        "nanobanana apiAICG阿洋（图生图）": locale_manager.get_node_display_name("nanobanana apiAICG阿洋（图生图）"),
+        "nanobanana 图生图尺寸调整": locale_manager.get_node_display_name("nanobanana 图生图尺寸调整"),
+    }
+
+NODE_DISPLAY_NAME_MAPPINGS = get_node_display_name_mappings()
+
+
+# 语言切换功能
+def set_locale(locale: str):
+    """设置语言环境"""
+    locale_manager.set_locale(locale)
+    # 更新显示名称映射
+    global NODE_DISPLAY_NAME_MAPPINGS
+    NODE_DISPLAY_NAME_MAPPINGS = get_node_display_name_mappings()
+
+
+def get_available_locales():
+    """获取可用的语言列表"""
+    return list(locale_manager.translations.keys())
+
+
+def get_current_locale():
+    """获取当前语言"""
+    return locale_manager.get_locale()

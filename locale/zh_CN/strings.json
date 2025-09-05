@@ -1,0 +1,85 @@
+{
+    "node_display_names": {
+        "nanobanana apiAICG阿洋（文生图）": "AICG阿洋（文生图）",
+        "nanobanana apiAICG阿洋（图生图）": "AICG阿洋（图生图）", 
+        "nanobanana 图生图尺寸调整": "图生图尺寸调整"
+    },
+    "widget_labels": {
+        "api_key": "API密钥",
+        "prompt": "提示词",
+        "model": "模型",
+        "image": "图像",
+        "image2": "图像2",
+        "image3": "图像3", 
+        "image4": "图像4",
+        "image5": "图像5",
+        "api_key_1": "备用API密钥1",
+        "api_key_2": "备用API密钥2",
+        "api_key_3": "备用API密钥3",
+        "api_key_4": "备用API密钥4",
+        "api_key_5": "备用API密钥5",
+        "image_format": "图像格式",
+        "canvas_preset": "画布预设",
+        "attach_canvas": "附加画布"
+    },
+    "canvas_presets": {
+        "1:1 - 1024x1024": "1:1 - 1024x1024",
+        "3:4 - 896x1152": "3:4 - 896x1152",
+        "5:8 - 832x1216": "5:8 - 832x1216",
+        "9:16 - 768x1344": "9:16 - 768x1344",
+        "9:21 - 640x1536": "9:21 - 640x1536",
+        "4:3 - 1152x896": "4:3 - 1152x896",
+        "3:2 - 1216x832": "3:2 - 1216x832",
+        "16:9 - 1344x768": "16:9 - 1344x768"
+    },
+    "image_formats": {
+        "jpeg": "JPEG",
+        "png": "PNG"
+    },
+    "boolean_options": {
+        "True": "是",
+        "False": "否"
+    },
+    "error_messages": {
+        "install_openai": "请先安装openai库: pip install openai",
+        "api_key_empty": "API密钥不能为空",
+        "no_valid_api_key": "错误：未提供有效API密钥，请至少填写一个（返回占位画布）",
+        "no_prompt": "错误：请输入提示词（返回占位画布）",
+        "no_valid_input_image": "错误：未提供有效输入图像（返回占位画布）",
+        "image_conversion_failed": "图像转换失败: {error}（返回占位画布）",
+        "api_call_error": "API调用错误: {error}",
+        "error_generating_image": "生成图片时出错: {error}",
+        "no_image_data": "未从模型收到图片数据",
+        "reference_image_conversion_failed": "参考图{index}转换失败: {error}",
+        "reference_image_conversion_failed_single": "参考图转换失败: {error}",
+        "model_response_format_error": "模型回复格式错误：images不是列表类型",
+        "image_decoding_failed": "图片解码失败: {error}",
+        "no_valid_image_data": "模型回复中未包含有效图片数据。",
+        "unable_to_serialize": "<无法序列化响应>",
+        "error_parsing_response": "解析响应出错: {error}",
+        "expected_tensor": "期望输入为torch.Tensor，实际得到{type}",
+        "image_tensor_dimension_error": "图像张量维度错误，期望4维，实际{dimensions}维",
+        "non_retryable_error": "使用Key #{key}发生不可重试错误: {error}（返回占位画布）",
+        "non_retryable_error_reference": "使用Key #{key}发生不可重试错误: {error}（返回参考图）",
+        "all_api_keys_failed": "所有API密钥尝试失败: {error}（返回占位画布）",
+        "all_api_keys_failed_reference": "所有API密钥尝试失败: {error}（返回参考图）"
+    },
+    "status_messages": {
+        "success_text_to_image": "成功生成{count}张图片 (文生图模式, 使用Key #{key_num}, 尝试{attempt}/{total})",
+        "success_image_to_image": "成功生成{count}张图片 (图生图模式, 使用Key #{key_num}, 尝试{attempt}/{total})"
+    },
+    "debug_messages": {
+        "warning_image_size_mismatch": "警告：图像{index}尺寸{size}与第一张图像{first_size}不一致，已调整尺寸",
+        "built_in_canvas_failed": "内置画布生成/裁剪失败: {error}",
+        "canvas_generation_failed": "画布生成失败: {error}，返回默认尺寸",
+        "attaching_reference_canvas": "附加参考画布到请求（第一张参考图）"
+    },
+    "prompts": {
+        "size_requirement": "请以 {width}x{height} 像素精确输出最终图像，不要缩放、裁剪或添加边框；输出必须与该像素完全一致。",
+        "text_to_image_prompt": "请在空白的画布上帮我生成：{prompt}",
+        "text_to_image_instruction": "仅返回生成的图像，不要返回任何文字描述或额外说明。",
+        "image_to_image_prompt": "请参考提供的图片内容和风格，根据以下提示词生成新图片：{prompt}",
+        "image_to_image_instruction": "直接返回生成的图像，无需任何文字描述或额外说明。",
+        "size_instruction": " 请以 {width}x{height} 像素输出最终图像，并返回该尺寸的图片。"
+    }
+}
